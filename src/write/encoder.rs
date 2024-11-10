@@ -1,4 +1,6 @@
+use std::fmt::Arguments;
 use std::io::Error;
+use std::io::IoSlice;
 use std::io::Write;
 
 use bzip2::write::BzEncoder;
@@ -73,6 +75,42 @@ impl<'a, W: Write> AnyEncoder<'a, W> {
             Self::Xz(w) => w.finish(),
             Self::Zstd(w) => w.finish(),
         }
+    }
+}
+
+impl<'a, W: Write> Write for AnyEncoder<'a, W> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
+        dispatch_mut!(self, Write::write, buf)
+    }
+
+    fn flush(&mut self) -> Result<(), Error> {
+        dispatch_mut!(self, Write::flush)
+    }
+
+    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> Result<usize, Error> {
+        dispatch_mut!(self, Write::write_vectored, bufs)
+    }
+
+    #[cfg(feature = "nightly")]
+    fn is_write_vectored(&self) -> bool {
+        dispatch!(self, Write::is_write_vectored)
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> Result<(), Error> {
+        dispatch_mut!(self, Write::write_all, buf)
+    }
+
+    #[cfg(feature = "nightly")]
+    fn write_all_vectored(&mut self, bufs: &mut [IoSlice<'_>]) -> Result<(), Error> {
+        dispatch_mut!(self, Write::write_all_vectored, bufs)
+    }
+
+    fn write_fmt(&mut self, fmt: Arguments<'_>) -> Result<(), Error> {
+        dispatch_mut!(self, Write::write_fmt, fmt)
+    }
+
+    fn by_ref(&mut self) -> &mut Self {
+        self
     }
 }
 
@@ -152,6 +190,7 @@ impl Compression {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 pub enum CompressionLevel {
     Write,
     Gz(flate2::Compression),
@@ -160,3 +199,35 @@ pub enum CompressionLevel {
     Xz(u32),
     Zstd(i32),
 }
+
+macro_rules! dispatch_mut {
+    ($inner:expr, $method:expr $(,$args:ident)*) => {
+        match $inner {
+            Self::Write(ref mut w) => $method(w, $($args),*),
+            Self::Gz(ref mut w) => $method(w, $($args),*),
+            Self::Bz(ref mut w) => $method(w, $($args),*),
+            Self::Zlib(ref mut w) => $method(w, $($args),*),
+            Self::Xz(ref mut w) => $method(w, $($args),*),
+            Self::Zstd(ref mut w) => $method(w, $($args),*),
+        }
+    }
+}
+
+use dispatch_mut;
+
+#[cfg(feature = "nightly")]
+macro_rules! dispatch {
+    ($inner:expr, $method:expr $(,$args:ident)*) => {
+        match $inner {
+            Self::Write(ref w) => $method(w, $($args),*),
+            Self::Gz(ref w) => $method(w, $($args),*),
+            Self::Bz(ref w) => $method(w, $($args),*),
+            Self::Zlib(ref w) => $method(w, $($args),*),
+            Self::Xz(ref w) => $method(w, $($args),*),
+            Self::Zstd(ref w) => $method(w, $($args),*),
+        }
+    }
+}
+
+#[cfg(feature = "nightly")]
+use dispatch;
