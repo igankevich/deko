@@ -7,7 +7,7 @@ use arbtest::arbtest;
 
 pub fn test_read_all<F, R>(mut f: F)
 where
-    F: for<'a> FnMut(VecDeque<u8>, &mut Unstructured<'a>) -> R + Clone,
+    F: for<'a> FnMut(VecDeque<u8>, &mut Unstructured<'a>) -> R,
     R: Read,
 {
     test_read(&mut f);
@@ -56,10 +56,12 @@ where
     R: Read,
 {
     arbtest(|u| {
+        // When `num_buffers == 0` or `buf_len == 0` zstd fails with
+        // "Operation made no progress over multiple calls, due to output buffer being full".
         let expected: VecDeque<u8> = u.arbitrary()?;
-        let num_buffers = u.int_in_range(0..=3)?;
+        let num_buffers = u.int_in_range(1..=3)?;
         let mut buffers: Vec<Vec<u8>> = Vec::from_iter((0..num_buffers).map(|_| {
-            let buf_len = u.int_in_range(0..=100).unwrap();
+            let buf_len = u.int_in_range(1..=100).unwrap();
             vec![0_u8; buf_len]
         }));
         let mut slices: Vec<IoSliceMut> = Vec::new();

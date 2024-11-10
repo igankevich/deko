@@ -468,6 +468,88 @@ mod tests {
     }
 
     #[test]
+    fn test_any_decoder() {
+        test_read_all(new_gz_reader);
+        test_read_all(new_zlib_reader);
+        test_read_all(new_bz_reader);
+        test_read_all(new_xz_reader);
+        test_read_all(new_zstd_reader);
+    }
+
+    fn new_gz_reader<'a>(
+        vec: VecDeque<u8>,
+        u: &mut Unstructured<'a>,
+    ) -> AnyDecoder<SingleByteReader<VecDeque<u8>>> {
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        let compression = Compression::new(u.int_in_range(0..=9).unwrap());
+        let mut writer = GzEncoder::new(Vec::new(), compression);
+        let bytes = vec.into_iter().collect::<Vec<_>>();
+        writer.write_all(&bytes).unwrap();
+        let compressed: VecDeque<u8> = writer.finish().unwrap().into();
+        let reader = SingleByteReader::new(compressed, u.int_in_range(1..=100).unwrap());
+        AnyDecoder::new(reader)
+    }
+
+    fn new_zlib_reader<'a>(
+        vec: VecDeque<u8>,
+        u: &mut Unstructured<'a>,
+    ) -> AnyDecoder<SingleByteReader<VecDeque<u8>>> {
+        use flate2::write::ZlibEncoder;
+        use flate2::Compression;
+        let compression = Compression::new(u.int_in_range(0..=9).unwrap());
+        let mut writer = ZlibEncoder::new(Vec::new(), compression);
+        let bytes = vec.into_iter().collect::<Vec<_>>();
+        writer.write_all(&bytes).unwrap();
+        let compressed: VecDeque<u8> = writer.finish().unwrap().into();
+        let reader = SingleByteReader::new(compressed, u.int_in_range(1..=100).unwrap());
+        AnyDecoder::new(reader)
+    }
+
+    fn new_bz_reader<'a>(
+        vec: VecDeque<u8>,
+        u: &mut Unstructured<'a>,
+    ) -> AnyDecoder<SingleByteReader<VecDeque<u8>>> {
+        use bzip2::write::BzEncoder;
+        use bzip2::Compression;
+        let compression = Compression::new(u.int_in_range(1..=9).unwrap());
+        let mut writer = BzEncoder::new(Vec::new(), compression);
+        let bytes = vec.into_iter().collect::<Vec<_>>();
+        writer.write_all(&bytes).unwrap();
+        let compressed: VecDeque<u8> = writer.finish().unwrap().into();
+        let reader = SingleByteReader::new(compressed, u.int_in_range(1..=100).unwrap());
+        AnyDecoder::new(reader)
+    }
+
+    fn new_xz_reader<'a>(
+        vec: VecDeque<u8>,
+        u: &mut Unstructured<'a>,
+    ) -> AnyDecoder<SingleByteReader<VecDeque<u8>>> {
+        use xz::write::XzEncoder;
+        let compression = u.int_in_range(0..=9).unwrap();
+        let mut writer = XzEncoder::new(Vec::new(), compression);
+        let bytes = vec.into_iter().collect::<Vec<_>>();
+        writer.write_all(&bytes).unwrap();
+        let compressed: VecDeque<u8> = writer.finish().unwrap().into();
+        let reader = SingleByteReader::new(compressed, u.int_in_range(1..=100).unwrap());
+        AnyDecoder::new(reader)
+    }
+
+    fn new_zstd_reader<'a>(
+        vec: VecDeque<u8>,
+        u: &mut Unstructured<'a>,
+    ) -> AnyDecoder<SingleByteReader<VecDeque<u8>>> {
+        use zstd::stream::write::Encoder;
+        let compression = u.int_in_range(0..=22).unwrap();
+        let mut writer = Encoder::new(Vec::new(), compression).unwrap();
+        let bytes = vec.into_iter().collect::<Vec<_>>();
+        writer.write_all(&bytes).unwrap();
+        let compressed: VecDeque<u8> = writer.finish().unwrap().into();
+        let reader = SingleByteReader::new(compressed, u.int_in_range(1..=100).unwrap());
+        AnyDecoder::new(reader)
+    }
+
+    #[test]
     fn test_magic_reader() {
         test_read_all(new_magic_reader);
         test_bufread_all(new_magic_reader);
@@ -477,7 +559,10 @@ mod tests {
         test_bufread_all(new_magic_reader_v3);
     }
 
-    fn new_magic_reader<'a>(vec: VecDeque<u8>, _u: &mut Unstructured<'a>) -> MagicReader<VecDeque<u8>> {
+    fn new_magic_reader<'a>(
+        vec: VecDeque<u8>,
+        _u: &mut Unstructured<'a>,
+    ) -> MagicReader<VecDeque<u8>> {
         let len = vec.len();
         let mut reader = MagicReader::new(vec);
         let magic = reader.read_magic().unwrap();
