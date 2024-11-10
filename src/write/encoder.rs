@@ -89,10 +89,6 @@ pub enum Encoder {
 /// Compression level.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default)]
 pub enum Compression {
-    /// No compression.
-    ///
-    /// For `zstd` this level is undefined and the default level is used instead.
-    None,
     /// Usually the lowest compression level.
     Fast,
     /// Usually the medium compression level.
@@ -121,7 +117,6 @@ impl Compression {
 
     fn to_flate2(self) -> flate2::Compression {
         match self {
-            Self::None => flate2::Compression::none(),
             Self::Fast => flate2::Compression::fast(),
             Self::Default => flate2::Compression::default(),
             Self::Best => flate2::Compression::best(),
@@ -131,7 +126,6 @@ impl Compression {
 
     fn to_bzip2(self) -> bzip2::Compression {
         match self {
-            Self::None => bzip2::Compression::none(),
             Self::Fast => bzip2::Compression::fast(),
             Self::Default => bzip2::Compression::default(),
             Self::Best => bzip2::Compression::best(),
@@ -141,7 +135,6 @@ impl Compression {
 
     fn to_xz(self) -> u32 {
         match self {
-            Self::None => 0,
             Self::Fast => 1,
             Self::Default => 5,
             Self::Best => 9,
@@ -151,7 +144,6 @@ impl Compression {
 
     fn to_zstd(self) -> i32 {
         match self {
-            Self::None => 0,
             Self::Fast => 1,
             Self::Default => 0,
             Self::Best => 22,

@@ -147,11 +147,26 @@ impl<R: BufRead> InnerDecoder<R> {
             [0x1f, 0x8b, 0x08, ..] => Ok(InnerDecoder::Gz(GzDecoder::new(reader))),
             // https://en.wikipedia.org/wiki/Bzip2
             [b'B', b'Z', b'h', ..] => Ok(InnerDecoder::Bz(BzDecoder::new(reader))),
-            [0x78, 0xda, ..] => Ok(InnerDecoder::Zlib(ZlibDecoder::new(reader))),
+            // https://www.rfc-editor.org/rfc/rfc1950
+            [cmf, flg, ..]
+                if zlib_cm(*cmf) == 8
+                    && zlib_cinfo(*cmf) <= 7
+                    && ((*cmf as u16) * 256 + (*flg as u16)) % 31 == 0 =>
+            {
+                Ok(InnerDecoder::Zlib(ZlibDecoder::new(reader)))
+            }
             // TODO pbzx
             _ => Ok(InnerDecoder::Reader(reader)),
         }
     }
+}
+
+const fn zlib_cm(x: u8) -> u8 {
+    x & 0b1111
+}
+
+const fn zlib_cinfo(x: u8) -> u8 {
+    (x >> 4) & 0b1111
 }
 
 macro_rules! dispatch_mut {
@@ -187,3 +202,115 @@ macro_rules! dispatch {
 
 #[cfg(feature = "nightly")]
 use dispatch;
+
+#[cfg(test)]
+mod tests {
+    use std::io::Write;
+
+    use arbitrary::Unstructured;
+    use arbtest::arbtest;
+
+    use super::*;
+
+    #[test]
+    fn write_gz_read_any() {
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        arbtest(|u| {
+            let compression = Compression::new(u.int_in_range(0..=9)?);
+            let writer = GzEncoder::new(Vec::new(), compression);
+            write_some_read_any(writer, u)
+        });
+    }
+
+    #[test]
+    fn write_bz_read_any() {
+        use bzip2::write::BzEncoder;
+        use bzip2::Compression;
+        arbtest(|u| {
+            let compression = Compression::new(u.int_in_range(1..=9)?);
+            let writer = BzEncoder::new(Vec::new(), compression);
+            write_some_read_any(writer, u)
+        });
+    }
+
+    #[test]
+    fn write_zlib_read_any() {
+        use flate2::write::ZlibEncoder;
+        use flate2::Compression;
+        arbtest(|u| {
+            let compression = Compression::new(u.int_in_range(1..=9)?);
+            let writer = ZlibEncoder::new(Vec::new(), compression);
+            write_some_read_any(writer, u)
+        });
+    }
+
+    #[test]
+    fn write_xz_read_any() {
+        use xz::write::XzEncoder;
+        arbtest(|u| {
+            let compression = u.int_in_range(0..=9)?;
+            let writer = XzEncoder::new(Vec::new(), compression);
+            write_some_read_any(writer, u)
+        });
+    }
+
+    #[test]
+    fn write_zstd_read_any() {
+        use zstd::stream::write::Encoder;
+        arbtest(|u| {
+            let compression = u.int_in_range(0..=22)?;
+            let writer = Encoder::new(Vec::new(), compression).unwrap();
+            write_some_read_any(writer, u)
+        });
+    }
+
+    fn write_some_read_any<'a, W: Write + Finish<Vec<u8>>>(
+        mut writer: W,
+        u: &mut Unstructured<'a>,
+    ) -> arbitrary::Result<()> {
+        let expected: Vec<u8> = u.arbitrary()?;
+        writer.write_all(&expected).unwrap();
+        let compressed = writer.finish().unwrap();
+        //eprintln!("compressed {:#x?}", compressed);
+        let mut reader = AnyDecoder::new(&compressed[..]);
+        let mut actual = Vec::new();
+        reader.read_to_end(&mut actual).unwrap();
+        assert_eq!(expected, actual);
+        Ok(())
+    }
+
+    trait Finish<W> {
+        fn finish(self) -> Result<W, Error>;
+    }
+
+    impl<W: Write> Finish<W> for flate2::write::GzEncoder<W> {
+        fn finish(self) -> Result<W, Error> {
+            Self::finish(self)
+        }
+    }
+
+    impl<W: Write> Finish<W> for flate2::write::ZlibEncoder<W> {
+        fn finish(self) -> Result<W, Error> {
+            Self::finish(self)
+        }
+    }
+
+    impl<W: Write> Finish<W> for bzip2::write::BzEncoder<W> {
+        fn finish(self) -> Result<W, Error> {
+            Self::finish(self)
+        }
+    }
+
+    impl<W: Write> Finish<W> for xz::write::XzEncoder<W> {
+        fn finish(self) -> Result<W, Error> {
+            Self::finish(self)
+        }
+    }
+
+    impl<'a, W: Write> Finish<W> for zstd::stream::write::Encoder<'a, W> {
+        fn finish(self) -> Result<W, Error> {
+            Self::finish(self)
+        }
+    }
+}
