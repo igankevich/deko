@@ -1,0 +1,15 @@
+[package]
+name = "any-decoder"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bzip2 = "0.4.4"
+flate2 = "1.0.33"
+xz = "0.1.0"
+zstd = "0.13.2"
+
+[features]
+default = []
+# Override methods only available in Rust Nightly.
+nightly = []
