@@ -9,18 +9,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "512761e0bb2578dd7380c6baaa0f4ce03e84f95e960231d1dec8bf4d7d6e2627"
 
 [[package]]
-name = "any-decoder"
-version = "0.1.0"
-dependencies = [
- "arbitrary",
- "arbtest",
- "bzip2",
- "flate2",
- "xz",
- "zstd",
-]
-
-[[package]]
 name = "arbitrary"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -83,6 +71,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a97769d94ddab943e4510d138150169a2758b5ef3eb191a9ee688de3e23ef7b3"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "deko"
+version = "0.1.0"
+dependencies = [
+ "arbitrary",
+ "arbtest",
+ "bzip2",
+ "flate2",
+ "xz",
+ "zstd",
 ]
 
 [[package]]

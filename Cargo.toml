@@ -1,19 +1,40 @@
 [package]
-name = "any-decoder"
+name = "deko"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+homepage = "https://github.com/igankevich/deko"
+repository = "https://github.com/igankevich/deko"
+documentation = "https://docs.rs/deko"
+readme = "README.md"
+description = "A decoder that automatically detects compression format (gzip, bzip2, xz, zstd) via external crates. Includes an encoder for the same formats as well."
+keywords = ["gzip", "zlib", "bzip2", "xz", "zstd"]
+categories = ["compression", "encoding"]
+include = ["**/*.rs", "Cargo.toml", "README.md", "LICENSE"]
 
 [dependencies]
-bzip2 = "0.4.4"
-flate2 = "1.0.33"
-xz = "0.1.0"
-zstd = "0.13.2"
+bzip2 = { version = "0.4.4", optional = true }
+flate2 = { version = "1.0.33", optional = true }
+xz = { version = "0.1.0", optional = true }
+zstd = { version = "0.13.2", optional = true }
 
 [dev-dependencies]
 arbitrary = { version = "1.4.1", features = ["derive", "derive_arbitrary"] }
 arbtest = "0.3.1"
 
 [features]
-default = []
+default = ["bzip2", "flate2", "xz", "zstd"]
 # Override methods only available in Rust Nightly.
 nightly = []
+bzip2 = ["dep:bzip2"]
+flate2 = ["dep:flate2"]
+xz = ["dep:xz"]
+zstd = ["dep:zstd"]
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+
+[lints.rust]
+missing_docs = "warn"

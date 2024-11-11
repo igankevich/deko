@@ -29,7 +29,7 @@ where
         let mut writer = make_writer(VecDeque::new(), u)?;
         let expected: Vec<u8> = u.arbitrary()?;
         let n: usize = u.int_in_range(0..=expected.len())?;
-        writer.write(&expected[..n]).unwrap();
+        let n = writer.write(&expected[..n]).unwrap();
         let mut reader = make_reader(writer, u)?;
         let mut actual = Vec::new();
         reader.read_to_end(&mut actual).unwrap();
