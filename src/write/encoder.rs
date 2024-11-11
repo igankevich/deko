@@ -19,28 +19,28 @@ pub enum AnyEncoder<'a, W: Write> {
 }
 
 impl<'a, W: Write> AnyEncoder<'a, W> {
-    pub fn new(writer: W, encoder: Encoder, compression: Compression) -> Result<Self, Error> {
+    pub fn new(writer: W, encoder: EncoderKind, compression: Compression) -> Result<Self, Error> {
         match encoder {
-            Encoder::Write => Ok(Self::Write(writer)),
-            Encoder::Gz => Ok(Self::Gz(GzEncoder::new(writer, compression.to_flate2()))),
-            Encoder::Bz => Ok(Self::Bz(BzEncoder::new(writer, compression.to_bzip2()))),
-            Encoder::Zlib => Ok(Self::Zlib(ZlibEncoder::new(
+            EncoderKind::Write => Ok(Self::Write(writer)),
+            EncoderKind::Gz => Ok(Self::Gz(GzEncoder::new(writer, compression.to_flate2()))),
+            EncoderKind::Bz => Ok(Self::Bz(BzEncoder::new(writer, compression.to_bzip2()))),
+            EncoderKind::Zlib => Ok(Self::Zlib(ZlibEncoder::new(
                 writer,
                 compression.to_flate2(),
             ))),
-            Encoder::Xz => Ok(Self::Xz(XzEncoder::new(writer, compression.to_xz()))),
-            Encoder::Zstd => Ok(Self::Zstd(ZstdEncoder::new(writer, compression.to_zstd())?)),
+            EncoderKind::Xz => Ok(Self::Xz(XzEncoder::new(writer, compression.to_xz()))),
+            EncoderKind::Zstd => Ok(Self::Zstd(ZstdEncoder::new(writer, compression.to_zstd())?)),
         }
     }
 
-    pub fn encoder(&self) -> Encoder {
+    pub fn kind(&self) -> EncoderKind {
         match self {
-            Self::Write(..) => Encoder::Write,
-            Self::Gz(..) => Encoder::Gz,
-            Self::Bz(..) => Encoder::Bz,
-            Self::Zlib(..) => Encoder::Zlib,
-            Self::Xz(..) => Encoder::Xz,
-            Self::Zstd(..) => Encoder::Zstd,
+            Self::Write(..) => EncoderKind::Write,
+            Self::Gz(..) => EncoderKind::Gz,
+            Self::Bz(..) => EncoderKind::Bz,
+            Self::Zlib(..) => EncoderKind::Zlib,
+            Self::Xz(..) => EncoderKind::Xz,
+            Self::Zstd(..) => EncoderKind::Zstd,
         }
     }
 
@@ -115,7 +115,8 @@ impl<'a, W: Write> Write for AnyEncoder<'a, W> {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Encoder {
+#[cfg_attr(test, derive(arbitrary::Arbitrary))]
+pub enum EncoderKind {
     Write,
     Gz,
     Bz,
@@ -126,6 +127,7 @@ pub enum Encoder {
 
 /// Compression level.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default)]
+#[cfg_attr(test, derive(arbitrary::Arbitrary))]
 pub enum Compression {
     /// Usually the lowest compression level.
     Fast,
@@ -142,14 +144,14 @@ pub enum Compression {
 
 impl Compression {
     /// Convert to specific compression level used by the underlying encoder.
-    pub fn to_level(self, encoder: Encoder) -> CompressionLevel {
+    pub fn to_level(self, encoder: EncoderKind) -> CompressionLevel {
         match encoder {
-            Encoder::Write => CompressionLevel::Write,
-            Encoder::Gz => CompressionLevel::Gz(self.to_flate2()),
-            Encoder::Bz => CompressionLevel::Bz(self.to_bzip2()),
-            Encoder::Zlib => CompressionLevel::Zlib(self.to_flate2()),
-            Encoder::Xz => CompressionLevel::Xz(self.to_xz()),
-            Encoder::Zstd => CompressionLevel::Zstd(self.to_zstd()),
+            EncoderKind::Write => CompressionLevel::Write,
+            EncoderKind::Gz => CompressionLevel::Gz(self.to_flate2()),
+            EncoderKind::Bz => CompressionLevel::Bz(self.to_bzip2()),
+            EncoderKind::Zlib => CompressionLevel::Zlib(self.to_flate2()),
+            EncoderKind::Xz => CompressionLevel::Xz(self.to_xz()),
+            EncoderKind::Zstd => CompressionLevel::Zstd(self.to_zstd()),
         }
     }
 
@@ -231,3 +233,77 @@ macro_rules! dispatch {
 
 #[cfg(feature = "nightly")]
 use dispatch;
+
+#[cfg(test)]
+mod tests {
+    use std::collections::VecDeque;
+    use std::io::Read;
+
+    use arbitrary::Unstructured;
+
+    use super::*;
+    use crate::bufread::AnyDecoder;
+    use crate::test::test_write_trait;
+
+    #[test]
+    fn test_any_encoder() {
+        test_write_trait(new_any_encoder, new_any_decoder);
+    }
+
+    fn new_any_encoder<'a>(
+        writer: VecDeque<u8>,
+        u: &mut Unstructured<'a>,
+    ) -> arbitrary::Result<AnyEncoder<'static, VecDeque<u8>>> {
+        let kind: EncoderKind = u.arbitrary()?;
+        let compression: Compression = arbitrary_compression(kind, u)?;
+        let encoder = AnyEncoder::new(writer, kind, compression).unwrap();
+        assert_eq!(kind, encoder.kind());
+        Ok(encoder)
+    }
+
+    fn new_any_decoder<'a>(
+        writer: AnyEncoder<VecDeque<u8>>,
+        u: &mut Unstructured<'a>,
+    ) -> arbitrary::Result<Box<dyn Read>> {
+        let kind = writer.kind();
+        let inner = writer.finish().unwrap();
+        let any: bool = u.arbitrary()?;
+        let decoder: Box<dyn Read> = if any {
+            Box::new(AnyDecoder::new(inner))
+        } else {
+            match kind {
+                EncoderKind::Write => Box::new(inner),
+                EncoderKind::Gz => Box::new(flate2::read::GzDecoder::new(inner)),
+                EncoderKind::Zlib => Box::new(flate2::read::ZlibDecoder::new(inner)),
+                EncoderKind::Bz => Box::new(bzip2::read::BzDecoder::new(inner)),
+                EncoderKind::Xz => Box::new(xz::read::XzDecoder::new(inner)),
+                EncoderKind::Zstd => Box::new(zstd::stream::read::Decoder::new(inner).unwrap()),
+            }
+        };
+        Ok(decoder)
+    }
+
+    fn arbitrary_compression<'a>(
+        kind: EncoderKind,
+        u: &mut Unstructured<'a>,
+    ) -> arbitrary::Result<Compression> {
+        let compression = u.arbitrary()?;
+        Ok(match kind {
+            EncoderKind::Write => compression,
+            EncoderKind::Gz => compression.clamp(0, 9),
+            EncoderKind::Zlib => compression.clamp(0, 9),
+            EncoderKind::Bz => compression.clamp(1, 9),
+            EncoderKind::Xz => compression.clamp(0, 9),
+            EncoderKind::Zstd => compression.clamp(0, 22),
+        })
+    }
+
+    impl Compression {
+        fn clamp(self, min: u32, max: u32) -> Self {
+            match self {
+                Self::Level(i) => Self::Level(i.min(max).max(min)),
+                other => other,
+            }
+        }
+    }
+}

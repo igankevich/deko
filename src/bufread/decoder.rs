@@ -392,6 +392,7 @@ mod tests {
     use super::*;
     use crate::test::test_bufread_all;
     use crate::test::test_read_all;
+    use crate::test::Finish;
 
     #[test]
     fn write_gz_read_any() {
@@ -605,40 +606,6 @@ mod tests {
         reader.read_to_end(&mut actual).unwrap();
         assert_eq!(expected, actual);
         Ok(())
-    }
-
-    trait Finish<W> {
-        fn finish(self) -> Result<W, Error>;
-    }
-
-    impl<W: Write> Finish<W> for flate2::write::GzEncoder<W> {
-        fn finish(self) -> Result<W, Error> {
-            Self::finish(self)
-        }
-    }
-
-    impl<W: Write> Finish<W> for flate2::write::ZlibEncoder<W> {
-        fn finish(self) -> Result<W, Error> {
-            Self::finish(self)
-        }
-    }
-
-    impl<W: Write> Finish<W> for bzip2::write::BzEncoder<W> {
-        fn finish(self) -> Result<W, Error> {
-            Self::finish(self)
-        }
-    }
-
-    impl<W: Write> Finish<W> for xz::write::XzEncoder<W> {
-        fn finish(self) -> Result<W, Error> {
-            Self::finish(self)
-        }
-    }
-
-    impl<'a, W: Write> Finish<W> for zstd::stream::write::Encoder<'a, W> {
-        fn finish(self) -> Result<W, Error> {
-            Self::finish(self)
-        }
     }
 
     // Reads at most `len` bytes.
