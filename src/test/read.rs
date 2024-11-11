@@ -15,7 +15,10 @@ where
     test_read_vectored(&mut f);
     test_read_to_end(&mut f);
     test_read_to_string(&mut f);
-    // TODO read_buf, read_buf_exact
+    #[cfg(feature = "nightly")]
+    test_read_buf(&mut f);
+    #[cfg(feature = "nightly")]
+    test_read_buf_exact(&mut f);
 }
 
 fn test_read<F, R>(f: &mut F)
@@ -29,6 +32,42 @@ where
         let mut reader = f(expected.clone(), u);
         let mut actual: Vec<u8> = vec![0_u8; buf_len];
         let n = reader.read(&mut actual[..]).unwrap();
+        assert_eq!(
+            &expected.iter().cloned().collect::<Vec<_>>()[..n],
+            &actual[..n],
+            "n = {}, expected len = {}, buffer len = {}",
+            n,
+            expected.len(),
+            buf_len
+        );
+        assert!(
+            n <= expected.len().min(buf_len)
+                && ((n != 0 && buf_len != 0 && !expected.is_empty())
+                    || (n == 0 && (buf_len == 0 || expected.is_empty()))),
+            "n = {}, expected len = {}, buffer len = {}",
+            n,
+            expected.len(),
+            buf_len
+        );
+        Ok(())
+    });
+}
+
+#[cfg(feature = "nightly")]
+fn test_read_buf<F, R>(f: &mut F)
+where
+    F: for<'a> FnMut(VecDeque<u8>, &mut Unstructured<'a>) -> R,
+    R: Read,
+{
+    use std::io::BorrowedBuf;
+    arbtest(|u| {
+        let expected: VecDeque<u8> = u.arbitrary()?;
+        let buf_len: usize = u.int_in_range(0..=16 * 4096)?;
+        let mut reader = f(expected.clone(), u);
+        let mut actual: Vec<u8> = vec![0_u8; buf_len];
+        let mut borrowed_buf: BorrowedBuf = (&mut actual[..]).into();
+        reader.read_buf(borrowed_buf.unfilled()).unwrap();
+        let n = borrowed_buf.len();
         assert_eq!(
             &expected.iter().cloned().collect::<Vec<_>>()[..n],
             &actual[..n],
@@ -137,6 +176,30 @@ where
         let buf_len = u.int_in_range(0..=expected.len()).unwrap();
         let mut actual: Vec<u8> = vec![0_u8; buf_len];
         reader.read_exact(&mut actual[..]).unwrap();
+        assert_eq!(
+            &expected.iter().cloned().collect::<Vec<_>>()[..buf_len],
+            &actual[..]
+        );
+        Ok(())
+    });
+}
+
+#[cfg(feature = "nightly")]
+fn test_read_buf_exact<F, R>(f: &mut F)
+where
+    F: for<'a> FnMut(VecDeque<u8>, &mut Unstructured<'a>) -> R,
+    R: Read,
+{
+    use std::io::BorrowedBuf;
+    arbtest(|u| {
+        let expected: VecDeque<u8> = u.arbitrary()?;
+        let mut reader = f(expected.clone(), u);
+        let buf_len = u.int_in_range(0..=expected.len()).unwrap();
+        let mut actual: Vec<u8> = vec![0_u8; buf_len];
+        let mut borrowed_buf: BorrowedBuf = (&mut actual[..]).into();
+        reader.read_buf_exact(borrowed_buf.unfilled()).unwrap();
+        let n = borrowed_buf.len();
+        assert_eq!(buf_len, n);
         assert_eq!(
             &expected.iter().cloned().collect::<Vec<_>>()[..buf_len],
             &actual[..]

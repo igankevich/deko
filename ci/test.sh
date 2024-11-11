@@ -12,6 +12,11 @@ test_all() {
     cargo test --workspace --no-fail-fast "$@" -- --nocapture
 }
 
+test_all_nightly() {
+    cargo +nightly test --workspace --quiet --no-run "$@"
+    cargo +nightly test --workspace --no-fail-fast "$@" -- --nocapture
+}
+
 test_coverage_preamble() {
     export CARGO_INCREMENTAL=0
     export RUSTFLAGS='-Zprofile -Ccodegen-units=1 -Cllvm-args=--inline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
@@ -45,12 +50,13 @@ test_miri() {
 }
 
 do_test_miri() {
-    env MIRIFLAGS=-Zmiri-disable-isolation cargo +nightly miri test --features serde "$@"
+    env MIRIFLAGS=-Zmiri-disable-isolation cargo +nightly miri test "$@"
 }
 
 clean
 #test_coverage_preamble
-test_all --no-default-features --features serde
-test_all --no-default-features --features serde,no_std
+test_all --no-default-features
+test_all_nightly --no-default-features --features nightly
 #test_coverage_postamble
-test_miri
+# TODO enable miri when we have a feature for each encoder/decoder
+#test_miri

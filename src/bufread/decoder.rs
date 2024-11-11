@@ -188,7 +188,7 @@ impl<R: BufRead> MagicReader<R> {
 
     #[cfg(feature = "nightly")]
     #[cold]
-    fn do_read_buf(&mut self, buf: BorrowedCursor<'_>) -> Result<usize, Error> {
+    fn do_read_buf(&mut self, buf: &mut BorrowedCursor<'_>) -> Result<usize, Error> {
         let n = buf.capacity().min(self.last - self.first);
         buf.append(&self.buf[self.first..(self.first + n)]);
         self.first += n;
@@ -259,17 +259,17 @@ impl<R: BufRead> Read for MagicReader<R> {
     }
 
     #[cfg(feature = "nightly")]
-    fn read_buf(&mut self, buf: BorrowedCursor<'_>) -> Result<(), Error> {
+    fn read_buf(&mut self, mut buf: BorrowedCursor<'_>) -> Result<(), Error> {
         if self.first != self.last {
-            self.do_read_buf(buf)?;
+            self.do_read_buf(&mut buf)?;
         }
         self.reader.read_buf(buf)
     }
 
     #[cfg(feature = "nightly")]
-    fn read_buf_exact(&mut self, buf: BorrowedCursor<'_>) -> Result<(), Error> {
+    fn read_buf_exact(&mut self, mut buf: BorrowedCursor<'_>) -> Result<(), Error> {
         if self.first != self.last {
-            self.do_read_buf(buf)?;
+            self.do_read_buf(&mut buf)?;
         }
         self.reader.read_buf_exact(buf)
     }
