@@ -250,9 +250,9 @@ mod tests {
         test_write_trait(new_any_encoder, new_any_decoder);
     }
 
-    fn new_any_encoder<'a>(
+    fn new_any_encoder(
         writer: VecDeque<u8>,
-        u: &mut Unstructured<'a>,
+        u: &mut Unstructured<'_>,
     ) -> arbitrary::Result<AnyEncoder<'static, VecDeque<u8>>> {
         let kind: EncoderKind = u.arbitrary()?;
         let compression: Compression = arbitrary_compression(kind, u)?;
@@ -261,9 +261,9 @@ mod tests {
         Ok(encoder)
     }
 
-    fn new_any_decoder<'a>(
+    fn new_any_decoder(
         writer: AnyEncoder<VecDeque<u8>>,
-        u: &mut Unstructured<'a>,
+        u: &mut Unstructured<'_>,
     ) -> arbitrary::Result<Box<dyn Read>> {
         let kind = writer.kind();
         let inner = writer.finish().unwrap();
@@ -283,9 +283,9 @@ mod tests {
         Ok(decoder)
     }
 
-    fn arbitrary_compression<'a>(
+    fn arbitrary_compression(
         kind: EncoderKind,
-        u: &mut Unstructured<'a>,
+        u: &mut Unstructured<'_>,
     ) -> arbitrary::Result<Compression> {
         let compression = u.arbitrary()?;
         Ok(match kind {

@@ -39,8 +39,8 @@ where
         );
         assert!(
             n <= expected.len().min(buf_len)
-                && ((n != 0 && buf_len != 0 && expected.len() != 0)
-                    || (n == 0 && (buf_len == 0 || expected.len() == 0))),
+                && ((n != 0 && buf_len != 0 && !expected.is_empty())
+                    || (n == 0 && (buf_len == 0 || expected.is_empty()))),
             "n = {}, expected len = {}, buffer len = {}",
             n,
             expected.len(),
@@ -73,7 +73,7 @@ where
         let buf_len: usize = buffers.iter().map(|x| x.len()).sum();
         assert_eq!(
             &expected.iter().cloned().collect::<Vec<_>>()[..n],
-            &buffers.iter().cloned().flatten().collect::<Vec<_>>()[..n],
+            &buffers.iter().flatten().cloned().collect::<Vec<_>>()[..n],
             "n = {}, expected len = {}, buffer len = {}",
             n,
             expected.len(),
@@ -81,8 +81,8 @@ where
         );
         assert!(
             n <= expected.len().min(buf_len)
-                && ((n != 0 && buf_len != 0 && expected.len() != 0)
-                    || (n == 0 && (buf_len == 0 || expected.len() == 0))),
+                && ((n != 0 && buf_len != 0 && !expected.is_empty())
+                    || (n == 0 && (buf_len == 0 || expected.is_empty()))),
             "n = {}, expected len = {}, buffer len = {}",
             n,
             expected.len(),
@@ -115,7 +115,7 @@ where
 {
     arbtest(|u| {
         let expected: String = u.arbitrary()?;
-        let bytes: VecDeque<u8> = VecDeque::from_iter(expected.as_bytes().to_vec().into_iter());
+        let bytes: VecDeque<u8> = VecDeque::from_iter(expected.as_bytes().to_vec());
         let mut reader = f(bytes.clone(), u);
         let mut actual = String::new();
         let n = reader.read_to_string(&mut actual).unwrap();

@@ -457,9 +457,9 @@ mod tests {
         test_read_trait(new_zstd_reader);
     }
 
-    fn new_gz_reader<'a>(
+    fn new_gz_reader(
         vec: VecDeque<u8>,
-        u: &mut Unstructured<'a>,
+        u: &mut Unstructured,
     ) -> AnyDecoder<NBytesReader<VecDeque<u8>>> {
         use flate2::write::GzEncoder;
         use flate2::Compression;
@@ -472,9 +472,9 @@ mod tests {
         AnyDecoder::new(reader)
     }
 
-    fn new_zlib_reader<'a>(
+    fn new_zlib_reader(
         vec: VecDeque<u8>,
-        u: &mut Unstructured<'a>,
+        u: &mut Unstructured,
     ) -> AnyDecoder<NBytesReader<VecDeque<u8>>> {
         use flate2::write::ZlibEncoder;
         use flate2::Compression;
@@ -487,9 +487,9 @@ mod tests {
         AnyDecoder::new(reader)
     }
 
-    fn new_bz_reader<'a>(
+    fn new_bz_reader(
         vec: VecDeque<u8>,
-        u: &mut Unstructured<'a>,
+        u: &mut Unstructured,
     ) -> AnyDecoder<NBytesReader<VecDeque<u8>>> {
         use bzip2::write::BzEncoder;
         use bzip2::Compression;
@@ -502,9 +502,9 @@ mod tests {
         AnyDecoder::new(reader)
     }
 
-    fn new_xz_reader<'a>(
+    fn new_xz_reader(
         vec: VecDeque<u8>,
-        u: &mut Unstructured<'a>,
+        u: &mut Unstructured,
     ) -> AnyDecoder<NBytesReader<VecDeque<u8>>> {
         use xz::write::XzEncoder;
         let compression = u.int_in_range(0..=9).unwrap();
@@ -516,9 +516,9 @@ mod tests {
         AnyDecoder::new(reader)
     }
 
-    fn new_zstd_reader<'a>(
+    fn new_zstd_reader(
         vec: VecDeque<u8>,
-        u: &mut Unstructured<'a>,
+        u: &mut Unstructured,
     ) -> AnyDecoder<NBytesReader<VecDeque<u8>>> {
         use zstd::stream::write::Encoder;
         let compression = u.int_in_range(0..=22).unwrap();
@@ -540,10 +540,7 @@ mod tests {
         test_bufread_all(new_magic_reader_v3);
     }
 
-    fn new_magic_reader<'a>(
-        vec: VecDeque<u8>,
-        _u: &mut Unstructured<'a>,
-    ) -> MagicReader<VecDeque<u8>> {
+    fn new_magic_reader(vec: VecDeque<u8>, _u: &mut Unstructured) -> MagicReader<VecDeque<u8>> {
         let len = vec.len();
         let mut reader = MagicReader::new(vec);
         let magic = reader.read_magic().unwrap();
@@ -556,24 +553,21 @@ mod tests {
         reader
     }
 
-    fn new_magic_reader_v2<'a>(
-        vec: VecDeque<u8>,
-        _u: &mut Unstructured<'a>,
-    ) -> MagicReader<VecDeque<u8>> {
+    fn new_magic_reader_v2(vec: VecDeque<u8>, _u: &mut Unstructured) -> MagicReader<VecDeque<u8>> {
         MagicReader::new(vec)
     }
 
-    fn new_magic_reader_v3<'a>(
+    fn new_magic_reader_v3(
         vec: VecDeque<u8>,
-        u: &mut Unstructured<'a>,
+        u: &mut Unstructured,
     ) -> MagicReader<NBytesReader<VecDeque<u8>>> {
         let reader = NBytesReader::new(vec, u.int_in_range(1..=100).unwrap());
         MagicReader::new(reader)
     }
 
-    fn write_some_read_any<'a, W: Write + Finish<Vec<u8>>>(
+    fn write_some_read_any<W: Write + Finish<Vec<u8>>>(
         mut writer: W,
-        u: &mut Unstructured<'a>,
+        u: &mut Unstructured,
     ) -> arbitrary::Result<()> {
         let expected: Vec<u8> = u.arbitrary()?;
         writer.write_all(&expected).unwrap();
