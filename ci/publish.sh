@@ -3,7 +3,7 @@
 . ./ci/preamble.sh
 
 cargo_publish() {
-    cargo publish --all-features --quiet
+    cargo publish --quiet
 }
 
 # TODO
