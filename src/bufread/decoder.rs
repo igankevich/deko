@@ -393,6 +393,7 @@ mod tests {
     use crate::test::test_bufread_all;
     use crate::test::test_read_trait;
     use crate::test::Finish;
+    use crate::test::NBytesReader;
 
     #[test]
     fn write_gz_read_any() {
@@ -448,27 +449,6 @@ mod tests {
     }
 
     #[test]
-    fn single_byte_reader() {
-        arbtest(|u| {
-            let expected: Vec<u8> = u.arbitrary()?;
-            let capacity = u.int_in_range(1..=4096)?;
-            let mut reader = SingleByteReader::new(&expected[..], capacity);
-            let mut actual: Vec<u8> = Vec::new();
-            loop {
-                let buf = reader.fill_buf().unwrap();
-                let n = buf.len();
-                if buf.is_empty() {
-                    break;
-                }
-                actual.extend(buf);
-                reader.consume(n);
-            }
-            assert_eq!(expected, actual);
-            Ok(())
-        });
-    }
-
-    #[test]
     fn test_any_decoder() {
         test_read_trait(new_gz_reader);
         test_read_trait(new_zlib_reader);
@@ -480,7 +460,7 @@ mod tests {
     fn new_gz_reader<'a>(
         vec: VecDeque<u8>,
         u: &mut Unstructured<'a>,
-    ) -> AnyDecoder<SingleByteReader<VecDeque<u8>>> {
+    ) -> AnyDecoder<NBytesReader<VecDeque<u8>>> {
         use flate2::write::GzEncoder;
         use flate2::Compression;
         let compression = Compression::new(u.int_in_range(0..=9).unwrap());
@@ -488,14 +468,14 @@ mod tests {
         let bytes = vec.into_iter().collect::<Vec<_>>();
         writer.write_all(&bytes).unwrap();
         let compressed: VecDeque<u8> = writer.finish().unwrap().into();
-        let reader = SingleByteReader::new(compressed, u.int_in_range(1..=100).unwrap());
+        let reader = NBytesReader::new(compressed, u.int_in_range(1..=100).unwrap());
         AnyDecoder::new(reader)
     }
 
     fn new_zlib_reader<'a>(
         vec: VecDeque<u8>,
         u: &mut Unstructured<'a>,
-    ) -> AnyDecoder<SingleByteReader<VecDeque<u8>>> {
+    ) -> AnyDecoder<NBytesReader<VecDeque<u8>>> {
         use flate2::write::ZlibEncoder;
         use flate2::Compression;
         let compression = Compression::new(u.int_in_range(0..=9).unwrap());
@@ -503,14 +483,14 @@ mod tests {
         let bytes = vec.into_iter().collect::<Vec<_>>();
         writer.write_all(&bytes).unwrap();
         let compressed: VecDeque<u8> = writer.finish().unwrap().into();
-        let reader = SingleByteReader::new(compressed, u.int_in_range(1..=100).unwrap());
+        let reader = NBytesReader::new(compressed, u.int_in_range(1..=100).unwrap());
         AnyDecoder::new(reader)
     }
 
     fn new_bz_reader<'a>(
         vec: VecDeque<u8>,
         u: &mut Unstructured<'a>,
-    ) -> AnyDecoder<SingleByteReader<VecDeque<u8>>> {
+    ) -> AnyDecoder<NBytesReader<VecDeque<u8>>> {
         use bzip2::write::BzEncoder;
         use bzip2::Compression;
         let compression = Compression::new(u.int_in_range(1..=9).unwrap());
@@ -518,35 +498,35 @@ mod tests {
         let bytes = vec.into_iter().collect::<Vec<_>>();
         writer.write_all(&bytes).unwrap();
         let compressed: VecDeque<u8> = writer.finish().unwrap().into();
-        let reader = SingleByteReader::new(compressed, u.int_in_range(1..=100).unwrap());
+        let reader = NBytesReader::new(compressed, u.int_in_range(1..=100).unwrap());
         AnyDecoder::new(reader)
     }
 
     fn new_xz_reader<'a>(
         vec: VecDeque<u8>,
         u: &mut Unstructured<'a>,
-    ) -> AnyDecoder<SingleByteReader<VecDeque<u8>>> {
+    ) -> AnyDecoder<NBytesReader<VecDeque<u8>>> {
         use xz::write::XzEncoder;
         let compression = u.int_in_range(0..=9).unwrap();
         let mut writer = XzEncoder::new(Vec::new(), compression);
         let bytes = vec.into_iter().collect::<Vec<_>>();
         writer.write_all(&bytes).unwrap();
         let compressed: VecDeque<u8> = writer.finish().unwrap().into();
-        let reader = SingleByteReader::new(compressed, u.int_in_range(1..=100).unwrap());
+        let reader = NBytesReader::new(compressed, u.int_in_range(1..=100).unwrap());
         AnyDecoder::new(reader)
     }
 
     fn new_zstd_reader<'a>(
         vec: VecDeque<u8>,
         u: &mut Unstructured<'a>,
-    ) -> AnyDecoder<SingleByteReader<VecDeque<u8>>> {
+    ) -> AnyDecoder<NBytesReader<VecDeque<u8>>> {
         use zstd::stream::write::Encoder;
         let compression = u.int_in_range(0..=22).unwrap();
         let mut writer = Encoder::new(Vec::new(), compression).unwrap();
         let bytes = vec.into_iter().collect::<Vec<_>>();
         writer.write_all(&bytes).unwrap();
         let compressed: VecDeque<u8> = writer.finish().unwrap().into();
-        let reader = SingleByteReader::new(compressed, u.int_in_range(1..=100).unwrap());
+        let reader = NBytesReader::new(compressed, u.int_in_range(1..=100).unwrap());
         AnyDecoder::new(reader)
     }
 
@@ -586,8 +566,8 @@ mod tests {
     fn new_magic_reader_v3<'a>(
         vec: VecDeque<u8>,
         u: &mut Unstructured<'a>,
-    ) -> MagicReader<SingleByteReader<VecDeque<u8>>> {
-        let reader = SingleByteReader::new(vec, u.int_in_range(1..=100).unwrap());
+    ) -> MagicReader<NBytesReader<VecDeque<u8>>> {
+        let reader = NBytesReader::new(vec, u.int_in_range(1..=100).unwrap());
         MagicReader::new(reader)
     }
 
@@ -599,57 +579,12 @@ mod tests {
         writer.write_all(&expected).unwrap();
         let compressed = writer.finish().unwrap();
         let capacity = u.int_in_range(1..=4096)?;
-        let reader = SingleByteReader::new(&compressed[..], capacity);
+        let reader = NBytesReader::new(&compressed[..], capacity);
         //eprintln!("compressed {:#x?}", compressed);
         let mut reader = AnyDecoder::new(reader);
         let mut actual = Vec::new();
         reader.read_to_end(&mut actual).unwrap();
         assert_eq!(expected, actual);
         Ok(())
-    }
-
-    // Reads at most `len` bytes.
-    struct SingleByteReader<R: Read> {
-        reader: R,
-        buf: Vec<u8>,
-        len: usize,
-    }
-
-    impl<R: Read> SingleByteReader<R> {
-        fn new(reader: R, len: usize) -> Self {
-            Self {
-                reader,
-                buf: Default::default(),
-                len,
-            }
-        }
-    }
-
-    impl<R: Read> Read for SingleByteReader<R> {
-        fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-            if self.buf.is_empty() {
-                self.fill_buf()?;
-            }
-            let n = buf.len().min(self.buf.len());
-            buf[..n].copy_from_slice(&self.buf[..n]);
-            self.consume(n);
-            Ok(n)
-        }
-    }
-
-    impl<R: Read> BufRead for SingleByteReader<R> {
-        fn fill_buf(&mut self) -> Result<&[u8], Error> {
-            if !self.buf.is_empty() {
-                return Ok(&self.buf[..]);
-            }
-            self.buf.resize(self.len, 0_u8);
-            let n = self.reader.read(&mut self.buf[..])?;
-            self.buf.truncate(n);
-            Ok(&self.buf[..n])
-        }
-
-        fn consume(&mut self, n: usize) {
-            self.buf.drain(..n);
-        }
     }
 }
