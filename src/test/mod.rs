@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 mod bufread;
 mod finish;
 mod n_bytes_reader;
