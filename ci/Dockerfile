@@ -33,7 +33,7 @@ RUN curl --location --silent --fail --output /usr/local/bin/shfmt https://github
 
 COPY --from=ghcr.io/staex-io/cijail:latest / /usr/local
 
-LABEL org.opencontainers.image.source=https://github.com/igankevich/any-decoder
+LABEL org.opencontainers.image.source=https://github.com/igankevich/deko
 LABEL org.opencontainers.image.description="CI image"
 
 CMD ["/bin/bash"]

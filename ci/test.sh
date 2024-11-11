@@ -20,7 +20,7 @@ test_all_nightly() {
 test_coverage_preamble() {
     export CARGO_INCREMENTAL=0
     export RUSTFLAGS='-Zprofile -Ccodegen-units=1 -Cllvm-args=--inline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-    export LLVM_PROFILE_FILE="any-decoder-%p-%m.profraw"
+    export LLVM_PROFILE_FILE="deko-%p-%m.profraw"
 }
 
 test_coverage_postamble() {
