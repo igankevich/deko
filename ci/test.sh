@@ -45,8 +45,8 @@ test_coverage_postamble() {
 
 test_miri() {
     cargo +nightly miri setup --quiet
-    do_test_miri --quiet --no-run
-    do_test_miri
+    do_test_miri --quiet --no-run "$@"
+    do_test_miri "$@"
 }
 
 do_test_miri() {
@@ -55,8 +55,8 @@ do_test_miri() {
 
 clean
 #test_coverage_preamble
-test_all --no-default-features
-test_all_nightly --no-default-features --features nightly
+test_all --no-default-features --features 'bzip2 flate2 xz zstd'
+test_all_nightly --no-default-features --all-features
 #test_coverage_postamble
-# TODO enable miri when we have a feature for each encoder/decoder
-#test_miri
+# only `flate2` crate is pure Rust
+test_miri --no-default-features --features flate2

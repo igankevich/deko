@@ -7,7 +7,7 @@ sh_end() {
 sh_begin() {
     trap sh_end EXIT
     workdir="$(mktemp -d)"
-    PS4='$0:$LINE 🎒 ' set -ex
+    PS4='$0:$LINE 🦎 ' set -ex
 }
 
 sh_begin

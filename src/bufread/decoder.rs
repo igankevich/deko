@@ -7,10 +7,15 @@ use std::io::ErrorKind;
 use std::io::IoSliceMut;
 use std::io::Read;
 
+#[cfg(feature = "bzip2")]
 use bzip2::bufread::BzDecoder;
+#[cfg(feature = "flate2")]
 use flate2::bufread::GzDecoder;
+#[cfg(feature = "flate2")]
 use flate2::bufread::ZlibDecoder;
+#[cfg(feature = "xz")]
 use xz::bufread::XzDecoder;
+#[cfg(feature = "zstd")]
 use zstd::stream::read::Decoder as ZstdDecoder;
 
 pub struct AnyDecoder<R: BufRead> {
@@ -32,10 +37,15 @@ impl<R: BufRead> AnyDecoder<R> {
         }
         match self.inner {
             InnerDecoder::Reader(ref r) => r.get_ref(),
+            #[cfg(feature = "flate2")]
             InnerDecoder::Gz(ref r) => r.get_ref().get_ref(),
+            #[cfg(feature = "bzip2")]
             InnerDecoder::Bz(ref r) => r.get_ref().get_ref(),
+            #[cfg(feature = "flate2")]
             InnerDecoder::Zlib(ref r) => r.get_ref().get_ref(),
+            #[cfg(feature = "xz")]
             InnerDecoder::Xz(ref r) => r.get_ref().get_ref(),
+            #[cfg(feature = "zstd")]
             InnerDecoder::Zstd(ref r) => r.get_ref().get_ref(),
             InnerDecoder::Empty(..) => unreachable!(),
         }
@@ -47,10 +57,15 @@ impl<R: BufRead> AnyDecoder<R> {
         }
         match self.inner {
             InnerDecoder::Reader(ref mut r) => r.get_mut(),
+            #[cfg(feature = "flate2")]
             InnerDecoder::Gz(ref mut r) => r.get_mut().get_mut(),
+            #[cfg(feature = "bzip2")]
             InnerDecoder::Bz(ref mut r) => r.get_mut().get_mut(),
+            #[cfg(feature = "flate2")]
             InnerDecoder::Zlib(ref mut r) => r.get_mut().get_mut(),
+            #[cfg(feature = "xz")]
             InnerDecoder::Xz(ref mut r) => r.get_mut().get_mut(),
+            #[cfg(feature = "zstd")]
             InnerDecoder::Zstd(ref mut r) => r.get_mut().get_mut(),
             InnerDecoder::Empty(..) => unreachable!(),
         }
@@ -62,10 +77,15 @@ impl<R: BufRead> AnyDecoder<R> {
         }
         match self.inner {
             InnerDecoder::Reader(r) => r.into_inner(),
+            #[cfg(feature = "flate2")]
             InnerDecoder::Gz(r) => r.into_inner().into_inner(),
+            #[cfg(feature = "bzip2")]
             InnerDecoder::Bz(r) => r.into_inner().into_inner(),
+            #[cfg(feature = "flate2")]
             InnerDecoder::Zlib(r) => r.into_inner().into_inner(),
+            #[cfg(feature = "xz")]
             InnerDecoder::Xz(r) => r.into_inner().into_inner(),
+            #[cfg(feature = "zstd")]
             InnerDecoder::Zstd(r) => r.finish().into_inner(),
             InnerDecoder::Empty(..) => unreachable!(),
         }
@@ -297,10 +317,15 @@ impl<R: BufRead> BufRead for MagicReader<R> {
 enum InnerDecoder<R: BufRead> {
     Empty(Empty),
     Reader(R),
+    #[cfg(feature = "flate2")]
     Gz(GzDecoder<R>),
+    #[cfg(feature = "bzip2")]
     Bz(BzDecoder<R>),
+    #[cfg(feature = "flate2")]
     Zlib(ZlibDecoder<R>),
+    #[cfg(feature = "xz")]
     Xz(XzDecoder<R>),
+    #[cfg(feature = "zstd")]
     Zstd(ZstdDecoder<'static, R>),
 }
 
@@ -314,16 +339,21 @@ impl<R: BufRead> InnerDecoder<MagicReader<R>> {
         };
         match magic {
             // https://tukaani.org/xz/xz-file-format-1.0.4.txt
+            #[cfg(feature = "xz")]
             [0xfd, b'7', b'z', b'X', b'Z', 0, ..] => Ok(InnerDecoder::Xz(XzDecoder::new(reader))),
             // RFC8878
+            #[cfg(feature = "zstd")]
             [0x28, 0xb5, 0x2f, 0xfd, ..] => {
                 Ok(InnerDecoder::Zstd(ZstdDecoder::with_buffer(reader)?))
             }
             // RFC1952
+            #[cfg(feature = "flate2")]
             [0x1f, 0x8b, 0x08, ..] => Ok(InnerDecoder::Gz(GzDecoder::new(reader))),
             // https://en.wikipedia.org/wiki/Bzip2
+            #[cfg(feature = "bzip2")]
             [b'B', b'Z', b'h', ..] => Ok(InnerDecoder::Bz(BzDecoder::new(reader))),
             // https://www.rfc-editor.org/rfc/rfc1950
+            #[cfg(feature = "flate2")]
             [cmf, flg, ..]
                 if zlib_cm(*cmf) == 8
                     && zlib_cinfo(*cmf) <= 7
@@ -337,10 +367,12 @@ impl<R: BufRead> InnerDecoder<MagicReader<R>> {
     }
 }
 
+#[cfg(feature = "flate2")]
 const fn zlib_cm(x: u8) -> u8 {
     x & 0b1111
 }
 
+#[cfg(feature = "flate2")]
 const fn zlib_cinfo(x: u8) -> u8 {
     (x >> 4) & 0b1111
 }
@@ -351,10 +383,15 @@ macro_rules! dispatch_mut {
     ($inner:expr, $method:expr $(,$args:ident)*) => {
         match $inner {
             InnerDecoder::Reader(ref mut r) => $method(r, $($args),*),
+            #[cfg(feature = "flate2")]
             InnerDecoder::Gz(ref mut r) => $method(r, $($args),*),
+            #[cfg(feature = "bzip2")]
             InnerDecoder::Bz(ref mut r) => $method(r, $($args),*),
+            #[cfg(feature = "flate2")]
             InnerDecoder::Zlib(ref mut r) => $method(r, $($args),*),
+#[cfg(feature = "xz")]
             InnerDecoder::Xz(ref mut r) => $method(r, $($args),*),
+#[cfg(feature = "zstd")]
             InnerDecoder::Zstd(ref mut r) => $method(r, $($args),*),
             InnerDecoder::Empty(ref mut r) => $method(r, $($args),*),
         }
@@ -368,10 +405,15 @@ macro_rules! dispatch {
     ($inner:expr, $method:expr $(,$args:ident)*) => {
         match $inner {
             InnerDecoder::Reader(ref r) => $method(r, $($args),*),
+            #[cfg(feature = "flate2")]
             InnerDecoder::Gz(ref r) => $method(r, $($args),*),
+            #[cfg(feature = "bzip2")]
             InnerDecoder::Bz(ref r) => $method(r, $($args),*),
+            #[cfg(feature = "flate2")]
             InnerDecoder::Zlib(ref r) => $method(r, $($args),*),
+#[cfg(feature = "xz")]
             InnerDecoder::Xz(ref r) => $method(r, $($args),*),
+#[cfg(feature = "zstd")]
             InnerDecoder::Zstd(ref r) => $method(r, $($args),*),
             InnerDecoder::Empty(ref r) => $method(r, $($args),*),
         }
@@ -395,6 +437,7 @@ mod tests {
     use crate::test::Finish;
     use crate::test::NBytesReader;
 
+    #[cfg(feature = "flate2")]
     #[test]
     fn write_gz_read_any() {
         use flate2::write::GzEncoder;
@@ -406,6 +449,7 @@ mod tests {
         });
     }
 
+    #[cfg(feature = "bzip2")]
     #[test]
     fn write_bz_read_any() {
         use bzip2::write::BzEncoder;
@@ -417,6 +461,7 @@ mod tests {
         });
     }
 
+    #[cfg(feature = "flate2")]
     #[test]
     fn write_zlib_read_any() {
         use flate2::write::ZlibEncoder;
@@ -428,6 +473,7 @@ mod tests {
         });
     }
 
+    #[cfg(feature = "xz")]
     #[test]
     fn write_xz_read_any() {
         use xz::write::XzEncoder;
@@ -438,6 +484,7 @@ mod tests {
         });
     }
 
+    #[cfg(feature = "zstd")]
     #[test]
     fn write_zstd_read_any() {
         use zstd::stream::write::Encoder;
@@ -450,13 +497,19 @@ mod tests {
 
     #[test]
     fn test_any_decoder() {
+        #[cfg(feature = "flate2")]
         test_read_trait(new_gz_reader);
+        #[cfg(feature = "flate2")]
         test_read_trait(new_zlib_reader);
+        #[cfg(feature = "bzip2")]
         test_read_trait(new_bz_reader);
+        #[cfg(feature = "xz")]
         test_read_trait(new_xz_reader);
+        #[cfg(feature = "zstd")]
         test_read_trait(new_zstd_reader);
     }
 
+    #[cfg(feature = "flate2")]
     fn new_gz_reader(
         vec: VecDeque<u8>,
         u: &mut Unstructured,
@@ -472,6 +525,7 @@ mod tests {
         AnyDecoder::new(reader)
     }
 
+    #[cfg(feature = "flate2")]
     fn new_zlib_reader(
         vec: VecDeque<u8>,
         u: &mut Unstructured,
@@ -487,6 +541,7 @@ mod tests {
         AnyDecoder::new(reader)
     }
 
+    #[cfg(feature = "bzip2")]
     fn new_bz_reader(
         vec: VecDeque<u8>,
         u: &mut Unstructured,
@@ -502,6 +557,7 @@ mod tests {
         AnyDecoder::new(reader)
     }
 
+    #[cfg(feature = "xz")]
     fn new_xz_reader(
         vec: VecDeque<u8>,
         u: &mut Unstructured,
@@ -516,6 +572,7 @@ mod tests {
         AnyDecoder::new(reader)
     }
 
+    #[cfg(feature = "zstd")]
     fn new_zstd_reader(
         vec: VecDeque<u8>,
         u: &mut Unstructured,
