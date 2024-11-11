@@ -5,7 +5,7 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/igankevich/human-units-ci:latest
+      image: ghcr.io/igankevich/any-decoder-ci:latest
       options: --cap-add SYS_PTRACE
     env:
       TZ: Europe/Berlin
