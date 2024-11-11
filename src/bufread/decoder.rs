@@ -389,9 +389,9 @@ macro_rules! dispatch_mut {
             InnerDecoder::Bz(ref mut r) => $method(r, $($args),*),
             #[cfg(feature = "flate2")]
             InnerDecoder::Zlib(ref mut r) => $method(r, $($args),*),
-#[cfg(feature = "xz")]
+            #[cfg(feature = "xz")]
             InnerDecoder::Xz(ref mut r) => $method(r, $($args),*),
-#[cfg(feature = "zstd")]
+            #[cfg(feature = "zstd")]
             InnerDecoder::Zstd(ref mut r) => $method(r, $($args),*),
             InnerDecoder::Empty(ref mut r) => $method(r, $($args),*),
         }
@@ -411,9 +411,9 @@ macro_rules! dispatch {
             InnerDecoder::Bz(ref r) => $method(r, $($args),*),
             #[cfg(feature = "flate2")]
             InnerDecoder::Zlib(ref r) => $method(r, $($args),*),
-#[cfg(feature = "xz")]
+            #[cfg(feature = "xz")]
             InnerDecoder::Xz(ref r) => $method(r, $($args),*),
-#[cfg(feature = "zstd")]
+            #[cfg(feature = "zstd")]
             InnerDecoder::Zstd(ref r) => $method(r, $($args),*),
             InnerDecoder::Empty(ref r) => $method(r, $($args),*),
         }
