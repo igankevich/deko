@@ -1,5 +1,5 @@
 [package]
-name = "any-decoder"
+name = "deko"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
@@ -7,9 +7,9 @@ homepage = "https://github.com/igankevich/any-decoder"
 repository = "https://github.com/igankevich/any-decoder"
 documentation = "https://docs.rs/any-decoder"
 readme = "README.md"
-description = "A decoder that automatically detects compression format (bzip, bzip2, xz, zstd) via external crates. Includes encoder as well."
-#keywords = ["format", "duration", "bytes", "configuration", "serialization"]
-#categories = ["encoding", "value-formatting", "config", "data-structures"]
+description = "A decoder that automatically detects compression format (gzip, bzip2, xz, zstd) via external crates. Includes an encoder for the same formats as well."
+keywords = ["gzip", "zlib", "bzip2", "xz", "zstd"]
+categories = ["compression", "encoding"]
 include = ["**/*.rs", "Cargo.toml", "README.md", "LICENSE"]
 
 [dependencies]
@@ -37,4 +37,4 @@ expect_used = "deny"
 panic = "deny"
 
 [lints.rust]
-#missing_docs = "warn"
+missing_docs = "warn"

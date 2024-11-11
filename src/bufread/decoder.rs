@@ -18,19 +18,48 @@ use xz::bufread::XzDecoder;
 #[cfg(feature = "zstd")]
 use zstd::stream::read::Decoder as ZstdDecoder;
 
+use crate::Format;
+
+/// A decoder that decompresses the supplied input stream using any of the supported formats.
+///
+/// The format is detected using the _magic bytes_ at the start of the stream.
+/// By default, if the format is not supported, the data is read verbatim.
+/// Use [fail_on_unknown_format](AnyDecoder::fail_on_unknown_format) to change this behaviour.
 pub struct AnyDecoder<R: BufRead> {
     reader: Option<MagicReader<R>>,
     inner: InnerDecoder<MagicReader<R>>,
+    fail_on_unknown_format: bool,
 }
 
 impl<R: BufRead> AnyDecoder<R> {
+    /// Create new decoder from the supplied `reader`.
     pub fn new(reader: R) -> Self {
         Self {
             reader: Some(MagicReader::new(reader)),
             inner: InnerDecoder::Empty(std::io::empty()),
+            fail_on_unknown_format: false,
         }
     }
 
+    /// Get the input stream format.
+    ///
+    /// The format is detected automatically when the data is read from the decoder.
+    /// If nothing was read before calling this method, a small amount of data is read from the
+    /// stream to detect the format.
+    /// If the format has already been detected, this method merely returns it.
+    pub fn kind(&mut self) -> Result<Format, Error> {
+        self.detect()?;
+        Ok(self.get_kind())
+    }
+
+    /// Throw an error when the decoder fails to detect compression format.
+    ///
+    /// By default no error is thrown, and the data is read verbatim.
+    pub fn fail_on_unknown_format(&mut self, value: bool) {
+        self.fail_on_unknown_format = value;
+    }
+
+    /// Get immutable reference to the underlying reader.
     pub fn get_ref(&self) -> &R {
         if let Some(r) = self.reader.as_ref() {
             return r.get_ref();
@@ -51,7 +80,8 @@ impl<R: BufRead> AnyDecoder<R> {
         }
     }
 
-    pub fn get_mut(&mut self) -> &R {
+    /// Get mutable reference to the underlying reader.
+    pub fn get_mut(&mut self) -> &mut R {
         if let Some(r) = self.reader.as_mut() {
             return r.get_mut();
         }
@@ -71,6 +101,7 @@ impl<R: BufRead> AnyDecoder<R> {
         }
     }
 
+    /// Return the underlying reader.
     pub fn into_inner(mut self) -> R {
         if let Some(r) = self.reader.take() {
             return r.reader;
@@ -92,22 +123,40 @@ impl<R: BufRead> AnyDecoder<R> {
     }
 
     #[inline]
-    fn detect_decoder(&mut self) -> Result<(), Error> {
+    fn detect(&mut self) -> Result<(), Error> {
         if let Some(r) = self.reader.take() {
-            self.inner = InnerDecoder::new(r)?;
+            self.inner = InnerDecoder::new(r, self.fail_on_unknown_format)?;
         }
         Ok(())
+    }
+
+    #[inline]
+    fn get_kind(&self) -> Format {
+        match self.inner {
+            InnerDecoder::Reader(..) => Format::Verbatim,
+            #[cfg(feature = "flate2")]
+            InnerDecoder::Gz(..) => Format::Gz,
+            #[cfg(feature = "bzip2")]
+            InnerDecoder::Bz(..) => Format::Bz,
+            #[cfg(feature = "flate2")]
+            InnerDecoder::Zlib(..) => Format::Zlib,
+            #[cfg(feature = "xz")]
+            InnerDecoder::Xz(..) => Format::Xz,
+            #[cfg(feature = "zstd")]
+            InnerDecoder::Zstd(..) => Format::Zstd,
+            InnerDecoder::Empty(..) => unreachable!(),
+        }
     }
 }
 
 impl<R: BufRead> Read for AnyDecoder<R> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        self.detect_decoder()?;
+        self.detect()?;
         dispatch_mut!(self.inner, Read::read, buf)
     }
 
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> Result<usize, Error> {
-        self.detect_decoder()?;
+        self.detect()?;
         dispatch_mut!(self.inner, Read::read_vectored, bufs)
     }
 
@@ -117,29 +166,29 @@ impl<R: BufRead> Read for AnyDecoder<R> {
     }
 
     fn read_to_end(&mut self, buf: &mut Vec<u8>) -> Result<usize, Error> {
-        self.detect_decoder()?;
+        self.detect()?;
         dispatch_mut!(self.inner, Read::read_to_end, buf)
     }
 
     fn read_to_string(&mut self, buf: &mut String) -> Result<usize, Error> {
-        self.detect_decoder()?;
+        self.detect()?;
         dispatch_mut!(self.inner, Read::read_to_string, buf)
     }
 
     fn read_exact(&mut self, buf: &mut [u8]) -> Result<(), Error> {
-        self.detect_decoder()?;
+        self.detect()?;
         dispatch_mut!(self.inner, Read::read_exact, buf)
     }
 
     #[cfg(feature = "nightly")]
     fn read_buf(&mut self, buf: BorrowedCursor<'_>) -> Result<(), Error> {
-        self.detect_decoder()?;
+        self.detect()?;
         dispatch_mut!(self.inner, Read::read_buf, buf)
     }
 
     #[cfg(feature = "nightly")]
     fn read_buf_exact(&mut self, buf: BorrowedCursor<'_>) -> Result<(), Error> {
-        self.detect_decoder()?;
+        self.detect()?;
         dispatch_mut!(self.inner, Read::read_buf_exact, buf)
     }
 }
@@ -330,7 +379,7 @@ enum InnerDecoder<R: BufRead> {
 }
 
 impl<R: BufRead> InnerDecoder<MagicReader<R>> {
-    fn new(mut reader: MagicReader<R>) -> Result<Self, Error> {
+    fn new(mut reader: MagicReader<R>, fail_on_unknown_format: bool) -> Result<Self, Error> {
         let magic = reader.read_magic()?;
         let magic = if magic.len() >= MAX_MAGIC_BYTES {
             magic
@@ -362,6 +411,10 @@ impl<R: BufRead> InnerDecoder<MagicReader<R>> {
                 Ok(InnerDecoder::Zlib(ZlibDecoder::new(reader)))
             }
             // TODO pbzx
+            _ if fail_on_unknown_format => Err(Error::new(
+                ErrorKind::InvalidData,
+                "unknown compression format",
+            )),
             _ => Ok(InnerDecoder::Reader(reader)),
         }
     }

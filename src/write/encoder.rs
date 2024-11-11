@@ -14,59 +14,71 @@ use xz::write::XzEncoder;
 #[cfg(feature = "zstd")]
 use zstd::stream::write::Encoder as ZstdEncoder;
 
+use crate::Format;
+
+/// An encoder that dynamically selects compression format via [Format] and [Compression].
 pub enum AnyEncoder<#[cfg(feature = "zstd")] 'a, W: Write> {
-    Write(W),
+    /// Verbatim encoder.
+    Verbatim(W),
+    /// Gzip encoder.
     #[cfg(feature = "flate2")]
     Gz(GzEncoder<W>),
+    /// Bzip2 encoder.
     #[cfg(feature = "bzip2")]
     Bz(BzEncoder<W>),
+    /// Zlib encoder.
     #[cfg(feature = "flate2")]
     Zlib(ZlibEncoder<W>),
+    /// XZ encoder.
     #[cfg(feature = "xz")]
     Xz(XzEncoder<W>),
+    /// Zstd encoder.
     #[cfg(feature = "zstd")]
     Zstd(ZstdEncoder<'a, W>),
 }
 
 impl_any_encoder! {
-    pub fn new(writer: W, encoder: EncoderKind, compression: Compression) -> Result<Self, Error> {
-        match encoder {
-            EncoderKind::Write => Ok(Self::Write(writer)),
+    /// Create new encoder for the supplied `format` and `compression` ratio.
+    pub fn new(writer: W, format: Format, compression: Compression) -> Result<Self, Error> {
+        match format {
+            Format::Verbatim => Ok(Self::Verbatim(writer)),
             #[cfg(feature = "flate2")]
-            EncoderKind::Gz => Ok(Self::Gz(GzEncoder::new(writer, compression.to_flate2()))),
+            Format::Gz => Ok(Self::Gz(GzEncoder::new(writer, compression.to_flate2()))),
             #[cfg(feature = "bzip2")]
-            EncoderKind::Bz => Ok(Self::Bz(BzEncoder::new(writer, compression.to_bzip2()))),
+            Format::Bz => Ok(Self::Bz(BzEncoder::new(writer, compression.to_bzip2()))),
             #[cfg(feature = "flate2")]
-            EncoderKind::Zlib => Ok(Self::Zlib(ZlibEncoder::new(
+            Format::Zlib => Ok(Self::Zlib(ZlibEncoder::new(
                 writer,
                 compression.to_flate2(),
             ))),
             #[cfg(feature = "xz")]
-            EncoderKind::Xz => Ok(Self::Xz(XzEncoder::new(writer, compression.to_xz()))),
+            Format::Xz => Ok(Self::Xz(XzEncoder::new(writer, compression.to_xz()))),
             #[cfg(feature = "zstd")]
-            EncoderKind::Zstd => Ok(Self::Zstd(ZstdEncoder::new(writer, compression.to_zstd())?)),
+            Format::Zstd => Ok(Self::Zstd(ZstdEncoder::new(writer, compression.to_zstd())?)),
         }
     }
 
-    pub fn kind(&self) -> EncoderKind {
+    /// Get encoding format.
+    pub fn format(&self) -> Format {
         match self {
-            Self::Write(..) => EncoderKind::Write,
+            Self::Verbatim(..) => Format::Verbatim,
             #[cfg(feature = "flate2")]
-            Self::Gz(..) => EncoderKind::Gz,
+            Self::Gz(..) => Format::Gz,
             #[cfg(feature = "bzip2")]
-            Self::Bz(..) => EncoderKind::Bz,
+            Self::Bz(..) => Format::Bz,
             #[cfg(feature = "flate2")]
-            Self::Zlib(..) => EncoderKind::Zlib,
+            Self::Zlib(..) => Format::Zlib,
             #[cfg(feature = "xz")]
-            Self::Xz(..) => EncoderKind::Xz,
+            Self::Xz(..) => Format::Xz,
             #[cfg(feature = "zstd")]
-            Self::Zstd(..) => EncoderKind::Zstd,
+            Self::Zstd(..) => Format::Zstd,
         }
     }
 
+    /// Get immutable reference to the underlying writer.
     pub fn get_ref(&self) -> &W {
         match self {
-            Self::Write(ref w) => w,
+            Self::Verbatim(ref w) => w,
             #[cfg(feature = "flate2")]
             Self::Gz(ref w) => w.get_ref(),
             #[cfg(feature = "bzip2")]
@@ -80,9 +92,10 @@ impl_any_encoder! {
         }
     }
 
+    /// Get mutable reference to the underlying writer.
     pub fn get_mut(&mut self) -> &mut W {
         match self {
-            Self::Write(ref mut w) => w,
+            Self::Verbatim(ref mut w) => w,
             #[cfg(feature = "flate2")]
             Self::Gz(ref mut w) => w.get_mut(),
             #[cfg(feature = "bzip2")]
@@ -96,9 +109,12 @@ impl_any_encoder! {
         }
     }
 
+    /// Finish encoding and return the underlying writer.
+    ///
+    /// This method is **not** automatically called on drop.
     pub fn finish(self) -> Result<W, Error> {
         match self {
-            Self::Write(w) => Ok(w),
+            Self::Verbatim(w) => Ok(w),
             #[cfg(feature = "flate2")]
             Self::Gz(w) => w.finish(),
             #[cfg(feature = "bzip2")]
@@ -149,34 +165,18 @@ impl_write_for_any_encoder! {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-#[cfg_attr(test, derive(arbitrary::Arbitrary))]
-pub enum EncoderKind {
-    Write,
-    #[cfg(feature = "flate2")]
-    Gz,
-    #[cfg(feature = "bzip2")]
-    Bz,
-    #[cfg(feature = "flate2")]
-    Zlib,
-    #[cfg(feature = "xz")]
-    Xz,
-    #[cfg(feature = "zstd")]
-    Zstd,
-}
-
 /// Compression level.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default)]
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
 pub enum Compression {
     /// Usually the lowest compression level.
     Fast,
-    /// Usually the medium compression level.
+    /// Usually some medium compression level.
     #[default]
     Default,
     /// Usually the highest compression level.
     Best,
-    /// Use the numeric value as the compression level.
+    /// Concrete compression level.
     ///
     /// Its meaning depends on the encoder being used.
     Level(u32),
@@ -184,19 +184,19 @@ pub enum Compression {
 
 impl Compression {
     /// Convert to specific compression level used by the underlying encoder.
-    pub fn to_level(self, encoder: EncoderKind) -> CompressionLevel {
+    pub fn to_level(self, encoder: Format) -> CompressionLevel {
         match encoder {
-            EncoderKind::Write => CompressionLevel::Write,
+            Format::Verbatim => CompressionLevel::None,
             #[cfg(feature = "flate2")]
-            EncoderKind::Gz => CompressionLevel::Gz(self.to_flate2()),
+            Format::Gz => CompressionLevel::Gz(self.to_flate2()),
             #[cfg(feature = "bzip2")]
-            EncoderKind::Bz => CompressionLevel::Bz(self.to_bzip2()),
+            Format::Bz => CompressionLevel::Bz(self.to_bzip2()),
             #[cfg(feature = "flate2")]
-            EncoderKind::Zlib => CompressionLevel::Zlib(self.to_flate2()),
+            Format::Zlib => CompressionLevel::Zlib(self.to_flate2()),
             #[cfg(feature = "xz")]
-            EncoderKind::Xz => CompressionLevel::Xz(self.to_xz()),
+            Format::Xz => CompressionLevel::Xz(self.to_xz()),
             #[cfg(feature = "zstd")]
-            EncoderKind::Zstd => CompressionLevel::Zstd(self.to_zstd()),
+            Format::Zstd => CompressionLevel::Zstd(self.to_zstd()),
         }
     }
 
@@ -241,17 +241,24 @@ impl Compression {
     }
 }
 
+/// Specific compression level for each output format.
 #[derive(Clone, Copy, Debug)]
 pub enum CompressionLevel {
-    Write,
+    /// No compression
+    None,
+    /// Gzip compression level.
     #[cfg(feature = "flate2")]
     Gz(flate2::Compression),
+    /// Bzip2 compression level.
     #[cfg(feature = "bzip2")]
     Bz(bzip2::Compression),
+    /// Zlib compression level.
     #[cfg(feature = "flate2")]
     Zlib(flate2::Compression),
+    /// XZ compression level (1–9).
     #[cfg(feature = "xz")]
     Xz(u32),
+    /// Zstd compression level (1–22, 0 means default compression).
     #[cfg(feature = "zstd")]
     Zstd(i32),
 }
@@ -259,7 +266,7 @@ pub enum CompressionLevel {
 macro_rules! dispatch_mut {
     ($inner:expr, $method:expr $(,$args:ident)*) => {
         match $inner {
-            Self::Write(ref mut w) => $method(w, $($args),*),
+            Self::Verbatim(ref mut w) => $method(w, $($args),*),
             #[cfg(feature = "flate2")]
             Self::Gz(ref mut w) => $method(w, $($args),*),
             #[cfg(feature = "bzip2")]
@@ -280,7 +287,7 @@ use dispatch_mut;
 macro_rules! dispatch {
     ($inner:expr, $method:expr $(,$args:ident)*) => {
         match $inner {
-            Self::Write(ref w) => $method(w, $($args),*),
+            Self::Verbatim(ref w) => $method(w, $($args),*),
             #[cfg(feature = "flate2")]
             Self::Gz(ref w) => $method(w, $($args),*),
             #[cfg(feature = "bzip2")]
@@ -353,10 +360,10 @@ mod tests {
         writer: VecDeque<u8>,
         u: &mut Unstructured<'_>,
     ) -> arbitrary::Result<AnyEncoderVecDeque> {
-        let kind: EncoderKind = u.arbitrary()?;
-        let compression: Compression = arbitrary_compression(kind, u)?;
-        let encoder = AnyEncoder::new(writer, kind, compression).unwrap();
-        assert_eq!(kind, encoder.kind());
+        let format: Format = u.arbitrary()?;
+        let compression: Compression = arbitrary_compression(format, u)?;
+        let encoder = AnyEncoder::new(writer, format, compression).unwrap();
+        assert_eq!(format, encoder.format());
         Ok(encoder)
     }
 
@@ -364,46 +371,46 @@ mod tests {
         writer: AnyEncoder<VecDeque<u8>>,
         u: &mut Unstructured<'_>,
     ) -> arbitrary::Result<Box<dyn Read>> {
-        let kind = writer.kind();
+        let format = writer.format();
         let inner = writer.finish().unwrap();
         let any: bool = u.arbitrary()?;
         let decoder: Box<dyn Read> = if any {
             Box::new(AnyDecoder::new(inner))
         } else {
-            match kind {
-                EncoderKind::Write => Box::new(inner),
+            match format {
+                Format::Verbatim => Box::new(inner),
                 #[cfg(feature = "flate2")]
-                EncoderKind::Gz => Box::new(flate2::read::GzDecoder::new(inner)),
+                Format::Gz => Box::new(flate2::read::GzDecoder::new(inner)),
                 #[cfg(feature = "flate2")]
-                EncoderKind::Zlib => Box::new(flate2::read::ZlibDecoder::new(inner)),
+                Format::Zlib => Box::new(flate2::read::ZlibDecoder::new(inner)),
                 #[cfg(feature = "bzip2")]
-                EncoderKind::Bz => Box::new(bzip2::read::BzDecoder::new(inner)),
+                Format::Bz => Box::new(bzip2::read::BzDecoder::new(inner)),
                 #[cfg(feature = "xz")]
-                EncoderKind::Xz => Box::new(xz::read::XzDecoder::new(inner)),
+                Format::Xz => Box::new(xz::read::XzDecoder::new(inner)),
                 #[cfg(feature = "zstd")]
-                EncoderKind::Zstd => Box::new(zstd::stream::read::Decoder::new(inner).unwrap()),
+                Format::Zstd => Box::new(zstd::stream::read::Decoder::new(inner).unwrap()),
             }
         };
         Ok(decoder)
     }
 
     fn arbitrary_compression(
-        kind: EncoderKind,
+        format: Format,
         u: &mut Unstructured<'_>,
     ) -> arbitrary::Result<Compression> {
         let compression = u.arbitrary()?;
-        Ok(match kind {
-            EncoderKind::Write => compression,
+        Ok(match format {
+            Format::Verbatim => compression,
             #[cfg(feature = "flate2")]
-            EncoderKind::Gz => compression.clamp(0, 9),
+            Format::Gz => compression.clamp(0, 9),
             #[cfg(feature = "flate2")]
-            EncoderKind::Zlib => compression.clamp(0, 9),
+            Format::Zlib => compression.clamp(0, 9),
             #[cfg(feature = "bzip2")]
-            EncoderKind::Bz => compression.clamp(1, 9),
+            Format::Bz => compression.clamp(1, 9),
             #[cfg(feature = "xz")]
-            EncoderKind::Xz => compression.clamp(0, 9),
+            Format::Xz => compression.clamp(0, 9),
             #[cfg(feature = "zstd")]
-            EncoderKind::Zstd => compression.clamp(0, 22),
+            Format::Zstd => compression.clamp(0, 22),
         })
     }
 
