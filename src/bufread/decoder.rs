@@ -391,7 +391,7 @@ mod tests {
 
     use super::*;
     use crate::test::test_bufread_all;
-    use crate::test::test_read_all;
+    use crate::test::test_read_trait;
     use crate::test::Finish;
 
     #[test]
@@ -470,11 +470,11 @@ mod tests {
 
     #[test]
     fn test_any_decoder() {
-        test_read_all(new_gz_reader);
-        test_read_all(new_zlib_reader);
-        test_read_all(new_bz_reader);
-        test_read_all(new_xz_reader);
-        test_read_all(new_zstd_reader);
+        test_read_trait(new_gz_reader);
+        test_read_trait(new_zlib_reader);
+        test_read_trait(new_bz_reader);
+        test_read_trait(new_xz_reader);
+        test_read_trait(new_zstd_reader);
     }
 
     fn new_gz_reader<'a>(
@@ -552,11 +552,11 @@ mod tests {
 
     #[test]
     fn test_magic_reader() {
-        test_read_all(new_magic_reader);
+        test_read_trait(new_magic_reader);
         test_bufread_all(new_magic_reader);
-        test_read_all(new_magic_reader_v2);
+        test_read_trait(new_magic_reader_v2);
         test_bufread_all(new_magic_reader_v2);
-        test_read_all(new_magic_reader_v3);
+        test_read_trait(new_magic_reader_v3);
         test_bufread_all(new_magic_reader_v3);
     }
 

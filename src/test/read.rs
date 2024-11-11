@@ -5,7 +5,7 @@ use std::io::Read;
 use arbitrary::Unstructured;
 use arbtest::arbtest;
 
-pub fn test_read_all<F, R>(mut f: F)
+pub fn test_read_trait<F, R>(mut f: F)
 where
     F: for<'a> FnMut(VecDeque<u8>, &mut Unstructured<'a>) -> R,
     R: Read,
