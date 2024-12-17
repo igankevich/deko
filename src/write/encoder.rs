@@ -17,7 +17,7 @@ use zstd::stream::write::Encoder as ZstdEncoder;
 use crate::Format;
 
 /// An encoder that dynamically selects compression format via [Format] and [Compression].
-pub enum AnyEncoder<#[cfg(feature = "zstd")] 'a, W: Write> {
+pub enum AnyEncoder<W: Write> {
     /// Verbatim encoder.
     Verbatim(W),
     /// Gzip encoder.
@@ -34,10 +34,10 @@ pub enum AnyEncoder<#[cfg(feature = "zstd")] 'a, W: Write> {
     Xz(XzEncoder<W>),
     /// Zstd encoder.
     #[cfg(feature = "zstd")]
-    Zstd(ZstdEncoder<'a, W>),
+    Zstd(ZstdEncoder<'static, W>),
 }
 
-impl_any_encoder! {
+impl<W: Write> AnyEncoder<W> {
     /// Create new encoder for the supplied `format` and `compression` ratio.
     pub fn new(writer: W, format: Format, compression: Compression) -> Result<Self, Error> {
         match format {
@@ -129,7 +129,7 @@ impl_any_encoder! {
     }
 }
 
-impl_write_for_any_encoder! {
+impl<W: Write> Write for AnyEncoder<W> {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
         dispatch_mut!(self, Write::write, buf)
     }
@@ -305,36 +305,6 @@ macro_rules! dispatch {
 #[cfg(feature = "nightly")]
 use dispatch;
 
-macro_rules! impl_any_encoder {
-    ($($body:item)*) => {
-        #[cfg(feature = "zstd")]
-        impl<'a, W: Write> AnyEncoder<'a, W> {
-            $($body)*
-        }
-        #[cfg(not(feature = "zstd"))]
-        impl<W: Write> AnyEncoder<W> {
-            $($body)*
-        }
-    }
-}
-
-use impl_any_encoder;
-
-macro_rules! impl_write_for_any_encoder {
-    ($($body:item)*) => {
-        #[cfg(feature = "zstd")]
-        impl<'a, W: Write> Write for AnyEncoder<'a, W> {
-            $($body)*
-        }
-        #[cfg(not(feature = "zstd"))]
-        impl<W: Write> Write for AnyEncoder<W> {
-            $($body)*
-        }
-    }
-}
-
-use impl_write_for_any_encoder;
-
 #[cfg(test)]
 mod tests {
     use std::collections::VecDeque;
@@ -351,9 +321,6 @@ mod tests {
         test_write_trait(new_any_encoder, new_any_decoder);
     }
 
-    #[cfg(feature = "zstd")]
-    type AnyEncoderVecDeque = AnyEncoder<'static, VecDeque<u8>>;
-    #[cfg(not(feature = "zstd"))]
     type AnyEncoderVecDeque = AnyEncoder<VecDeque<u8>>;
 
     fn new_any_encoder(
