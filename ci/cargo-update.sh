@@ -10,7 +10,7 @@ check_patch() {
     printf '```'"\n" >>message.txt
     cargo_update 2>&1 | tee -a message.txt
     printf '```'"\n" >>message.txt
-    if sha256sum -c hashes >/dev/null 2>&1; then
+    if ! sha256sum -c hashes >/dev/null 2>&1; then
         patch=1
     fi
 }
@@ -21,7 +21,7 @@ check_minor() {
     printf '```'"\n" >>message.txt
     cargo_update -Z unstable-options --breaking 2>&1 | tee -a message.txt
     printf '```'"\n" >>message.txt
-    if sha256sum -c hashes >/dev/null 2>&1; then
+    if ! sha256sum -c hashes >/dev/null 2>&1; then
         minor=1
     fi
 }
