@@ -1,0 +1,26 @@
+---
+name: Cargo update
+on: workflow_dispatch
+jobs:
+  cargo-update:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly
+      - name: Cargo update
+        run: |-
+          printf "Cargo update\n" >message.txt
+          cargo update -Z unstable-options --breaking --verbose --workspace 2>&1 | tee -a message.txt
+          git config --global user.name "Cargo Updater"
+          git config --global user.email "igankevich@users.noreply.github.com"
+          hash="$(cat Cargo.toml Cargo.lock | sha256sum | awk -F' ' '{ print $1 }')"
+          branch=cargo-update/"$hash"
+          git checkout -b "$branch"
+          git commit --all --file message.txt
+          git push origin "$branch"
+          gh pr create -B master -H "$branch" --title "Cargo update" --body "$(cat message.txt)"
