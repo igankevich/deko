@@ -13,3 +13,8 @@ pub mod write;
 pub use self::bufread::AnyDecoder;
 pub use self::format::*;
 pub use self::write::AnyEncoder;
+
+// TODO impl crate::read::AnyDecoder
+// TODO add deko-cli crate
+// TODO impl AsyncRead, AsyncBufRead
+// TODO add AnyDecoder constructor that takes Format as an argument. Use case: xar
