@@ -1,35 +1,33 @@
 #!/bin/sh
 
-. ./ci/preamble.sh
-
 cargo_update() {
     cargo update --color=never --verbose --workspace "$@"
 }
 
 check_patch() {
     sha256sum Cargo.toml Cargo.lock >hashes
-    printf "Patches:\n\n" >>message.txt
+    printf "\n# Patches\n\n" >>message.txt
+    printf '```'"\n" >>message.txt
     cargo_update 2>&1 | tee -a message.txt
+    printf '```'"\n" >>message.txt
     if sha256sum -c hashes >/dev/null 2>&1; then
         patch=1
-    else
-        printf "None.\n" >>message.txt
     fi
 }
 
 check_minor() {
     sha256sum Cargo.toml Cargo.lock >hashes
-    printf "Minor:\n\n" >>message.txt
+    printf "\n# Minor:\n\n" >>message.txt
+    printf '```'"\n" >>message.txt
     cargo_update -Z unstable-options --breaking 2>&1 | tee -a message.txt
+    printf '```'"\n" >>message.txt
     if sha256sum -c hashes >/dev/null 2>&1; then
         minor=1
-    else
-        printf "None.\n" >>message.txt
     fi
 }
 
 bump_version() {
-    cargo install cargo-bump
+    cargo install --quiet cargo-bump
     if test "$patch" = 1; then
         cargo bump patch
     fi
@@ -49,9 +47,10 @@ create_pull_request() {
     gh pr create -B master -H "$branch" --title "Cargo update" --body "$(cat message.txt)"
 }
 
+set -e
 patch=0
 minor=0
-printf "Cargo update\n\n" >message.txt
+printf "Cargo update\n" >message.txt
 check_patch
 check_minor
 if test "$minor" = 0 && test "$patch" = 0; then
