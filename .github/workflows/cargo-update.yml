@@ -4,6 +4,9 @@ on: workflow_dispatch
 jobs:
   cargo-update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
