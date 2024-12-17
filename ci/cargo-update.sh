@@ -1,12 +1,12 @@
 #!/bin/sh
 
 cargo_update() {
-    cargo update --color=never --verbose --workspace "$@"
+    cargo update --color=never --verbose "$@"
 }
 
 check_patch() {
     sha256sum Cargo.toml Cargo.lock >hashes
-    printf "\n# Patches\n\n" >>message.txt
+    printf "\n## Patches\n\n" >>message.txt
     printf '```'"\n" >>message.txt
     cargo_update 2>&1 | tee -a message.txt
     printf '```'"\n" >>message.txt
@@ -17,7 +17,7 @@ check_patch() {
 
 check_minor() {
     sha256sum Cargo.toml Cargo.lock >hashes
-    printf "\n# Minor:\n\n" >>message.txt
+    printf "\n## Minor\n\n" >>message.txt
     printf '```'"\n" >>message.txt
     cargo_update -Z unstable-options --breaking 2>&1 | tee -a message.txt
     printf '```'"\n" >>message.txt
@@ -50,7 +50,7 @@ create_pull_request() {
 set -e
 patch=0
 minor=0
-printf "Cargo update\n" >message.txt
+printf "# Cargo update\n" >message.txt
 check_patch
 check_minor
 if test "$minor" = 0 && test "$patch" = 0; then
