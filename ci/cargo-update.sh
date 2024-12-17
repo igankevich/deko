@@ -34,6 +34,8 @@ bump_version() {
     if test "$minor" = 1; then
         cargo bump minor
     fi
+    # include the new version of the package in Cargo.lock
+    cargo_update >/dev/null 2>&1
 }
 
 create_pull_request() {
