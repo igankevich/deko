@@ -1,6 +1,6 @@
 ---
 name: Cargo update
-on: push
+on: workflow_dispatch
 jobs:
   cargo-update:
     runs-on: ubuntu-latest
@@ -17,8 +17,8 @@ jobs:
           toolchain: nightly
       - name: Cargo update
         run: |-
-          printf "Cargo update\n" >message.txt
-          cargo update -Z unstable-options --breaking --verbose --workspace 2>&1 | tee -a message.txt
+          printf "Cargo update\n\n" >message.txt
+          cargo update --color=never -Z unstable-options --breaking --verbose --workspace 2>&1 | tee -a message.txt
           git config --global user.name "Cargo Updater"
           git config --global user.email "igankevich@users.noreply.github.com"
           hash="$(cat Cargo.toml Cargo.lock | sha256sum | awk -F' ' '{ print $1 }')"
