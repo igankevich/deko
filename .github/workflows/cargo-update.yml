@@ -1,6 +1,6 @@
 ---
 name: Cargo update
-on: workflow_dispatch
+on: push
 jobs:
   cargo-update:
     runs-on: ubuntu-latest
