@@ -1,6 +1,8 @@
 macro_rules! define_magic_reader {
     ($trait: ident) => {
         use crate::MAX_MAGIC_BYTES;
+        #[cfg(feature = "nightly")]
+        use std::io::BorrowedCursor;
         use std::io::Error;
         use std::io::ErrorKind;
         use std::io::IoSliceMut;
