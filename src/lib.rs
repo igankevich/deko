@@ -3,6 +3,10 @@
 #![cfg_attr(feature = "nightly", feature(read_buf))]
 #![cfg_attr(feature = "nightly", feature(write_all_vectored))]
 #![doc = include_str!("../README.md")]
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/igankevich/rust-docs-assets/master/deko/deko.png",
+    html_favicon_url = "https://raw.githubusercontent.com/igankevich/rust-docs-assets/master/deko/deko.png"
+)]
 
 pub mod bufread;
 mod constants;

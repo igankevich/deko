@@ -4,6 +4,8 @@
 [![Docs](https://docs.rs/deko/badge.svg)](https://docs.rs/deko)
 [![dependency status](https://deps.rs/repo/github/igankevich/deko/status.svg)](https://deps.rs/repo/github/igankevich/deko)
 
+![Deko icon.](https://raw.githubusercontent.com/igankevich/rust-docs-assets/master/deko/deko.png)
+
 A decoder that automatically detects compression format (gzip, bzip2, xz, zstd) via external crates.
 Includes an encoder for the same formats as well.
 
