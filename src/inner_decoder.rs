@@ -3,7 +3,7 @@ macro_rules! import_decoders {
         #[cfg(feature = "bzip2")]
         use bzip2::read::BzDecoder;
         #[cfg(feature = "flate2")]
-        use flate2::read::GzDecoder;
+        use flate2::read::MultiGzDecoder;
         #[cfg(feature = "flate2")]
         use flate2::read::ZlibDecoder;
         #[cfg(feature = "xz")]
@@ -16,7 +16,7 @@ macro_rules! import_decoders {
         #[cfg(feature = "bzip2")]
         use bzip2::bufread::BzDecoder;
         #[cfg(feature = "flate2")]
-        use flate2::bufread::GzDecoder;
+        use flate2::bufread::MultiGzDecoder;
         #[cfg(feature = "flate2")]
         use flate2::bufread::ZlibDecoder;
         #[cfg(feature = "xz")]
@@ -38,7 +38,7 @@ macro_rules! define_inner_decoder {
             Empty(Empty),
             Reader(R),
             #[cfg(feature = "flate2")]
-            Gz(GzDecoder<R>),
+            Gz(MultiGzDecoder<R>),
             #[cfg(feature = "bzip2")]
             Bz(BzDecoder<R>),
             #[cfg(feature = "flate2")]
@@ -64,7 +64,7 @@ macro_rules! define_inner_decoder {
                     // https://tukaani.org/xz/xz-file-format-1.0.4.txt
                     #[cfg(feature = "xz")]
                     [0xfd, b'7', b'z', b'X', b'Z', 0, ..] => {
-                        Ok(InnerDecoder::Xz(XzDecoder::new(reader)))
+                        Ok(InnerDecoder::Xz(XzDecoder::new_multi_decoder(reader)))
                     }
                     // RFC8878
                     #[cfg(feature = "zstd")]
@@ -73,7 +73,7 @@ macro_rules! define_inner_decoder {
                     )),
                     // RFC1952
                     #[cfg(feature = "flate2")]
-                    [0x1f, 0x8b, 0x08, ..] => Ok(InnerDecoder::Gz(GzDecoder::new(reader))),
+                    [0x1f, 0x8b, 0x08, ..] => Ok(InnerDecoder::Gz(MultiGzDecoder::new(reader))),
                     // https://en.wikipedia.org/wiki/Bzip2
                     #[cfg(feature = "bzip2")]
                     [b'B', b'Z', b'h', ..] => Ok(InnerDecoder::Bz(BzDecoder::new(reader))),
