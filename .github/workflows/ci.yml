@@ -4,13 +4,12 @@ on: [push]
 jobs:
   ci:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/igankevich/any-decoder-ci:latest
     env:
       RUST_BACKTRACE: 1
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.4
+      - name: Install dependencies
       - name: Lint
         run: ./ci/lint.sh
       - name: Test
