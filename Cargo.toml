@@ -1,6 +1,6 @@
 [package]
 name = "deko"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 license = "MIT"
 homepage = "https://github.com/igankevich/deko"
@@ -13,8 +13,8 @@ categories = ["compression", "encoding"]
 include = ["**/*.rs", "Cargo.toml", "README.md", "LICENSE"]
 
 [dependencies]
-bzip2 = { version = "0.5.2", optional = true }
-flate2 = { version = "1.1.1", optional = true }
+bzip2 = { version = "0.6.1", optional = true }
+flate2 = { version = "1.1.5", optional = true }
 xz = { package = "liblzma", version = "0.4.5", optional = true }
 zstd = { version = "0.13.3", optional = true }
 

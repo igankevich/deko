@@ -158,7 +158,7 @@ where
         let mut reader = f(bytes.clone(), u);
         let mut actual = String::new();
         let n = reader.read_to_string(&mut actual).unwrap();
-        let expected_len = expected.as_bytes().len();
+        let expected_len = expected.len();
         assert_eq!(expected, actual);
         assert_eq!(n, expected_len);
         Ok(())

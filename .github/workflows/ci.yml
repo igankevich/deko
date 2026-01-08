@@ -4,33 +4,14 @@ on: [push]
 jobs:
   ci:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/igankevich/any-decoder-ci:latest
-      options: --cap-add SYS_PTRACE
     env:
-      TZ: Europe/Berlin
       RUST_BACKTRACE: 1
-      CIJAIL_ENDPOINTS: |
-        https://github.com/lyz-code/yamlfix/
-        https://pypi.org/simple/
-        https://files.pythonhosted.org/packages/
-        https://static.crates.io/crates/
-        https://index.crates.io/
-        https://github.com/rustsec/advisory-db
-        https://static.rust-lang.org/dist/
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.4
+      - name: Install dependencies
+        run: rustup component add --toolchain nightly-x86_64-unknown-linux-gnu miri
       - name: Lint
-        run: cijail ./ci/lint.sh
+        run: ./ci/lint.sh
       - name: Test
-        run: cijail ./ci/test.sh
-      - name: Benchmarks
-        run: cijail ./ci/bench.sh
-      - name: Publish
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
-          CIJAIL_ENDPOINTS: |
-            ${{ env.CIJAIL_ENDPOINTS }}
-            https://crates.io/api/v1/crates/new
-        run: cijail ./ci/publish.sh
+        run: ./ci/test.sh
