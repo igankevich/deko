@@ -9,7 +9,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.4
-      - name: Install dependencies
       - name: Lint
         run: ./ci/lint.sh
       - name: Test
